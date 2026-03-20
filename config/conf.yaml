@@ -1,0 +1,54 @@
+src_path: "~/Github/spass_paper1/data/vitaldb/1.0.0/vital_files/"
+data_path: "~/Github/spass_paper1/data"
+model_path: "~/Github/spass_paper1/model"
+track_names:
+  - "Intellivue/ABP"
+  - "Intellivue/ART"
+  - "SNUADC/ART"
+  - "SNUADCM/ART"
+  - "CardioQ/ABP"
+seed: 42
+fs: 100
+input_len: 30
+pred_len: 900
+static_len: 25
+filtering:
+  N: 2
+  rs: 10
+  Wn: 15
+  btype: "lowpass"
+  output: "sos"
+  fs: 100
+smoothing:
+  N: 5
+  mode: "valid"
+detection:
+  threshold: 0.65
+  dist: 50
+  prom: 6
+  width: 3
+  wlen: 100
+  peak_height: [60, 300]
+  trough_height: [-150, -30]
+sqi:
+  threshold: 0.65
+  zero_interval: [-0.01, 0.01]
+  params:
+    max_beat_size: 150
+    max_beat_height: 200
+    min_beat_height: 0
+    min_skewness: -0.16
+    max_flatness: 0.61
+    min_shape_integrity: 0.15
+event_condition:
+  pos:
+    N: 60
+    threshold: 65
+    pos_stride: 60
+    group_range: 5
+  neg:
+    adjacency: 20
+adjacency: 20
+segment:
+  seg_stride: 30
+  seg_density: 5
