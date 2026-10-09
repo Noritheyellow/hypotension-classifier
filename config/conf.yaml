@@ -23,7 +23,7 @@ smoothing:
   N: 5
   mode: "valid"
 detection:
-  threshold: 0.65
+  threshold: 0.35 # original 0.65
   dist: 50
   prom: 6
   width: 3

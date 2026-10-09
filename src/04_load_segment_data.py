@@ -46,7 +46,8 @@ def range_segment(segments):
 
 def assess_segment(ranges, sqi, config):
     if len(ranges) != 0:
-        is_bad_quality = np.any(sqi[ranges] > config["sqi"]["threshold"], axis=1)
+        # updated at 2026.10.09: SQI 부호 변경
+        is_bad_quality = np.any(sqi[ranges] < config["sqi"]["threshold"], axis=1) 
         samples = ranges[~is_bad_quality]
     else:
         samples = np.array([], dtype=np.int32).reshape(

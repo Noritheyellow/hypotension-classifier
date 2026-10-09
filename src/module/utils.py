@@ -294,7 +294,7 @@ def assess_beat(arr, troughs, approx_zero, thresholds, verbose=False):
     #     score_section[-1] = np.zeros_like(score_section[-1])
     #     score = np.hstack(score_section)
 
-    return score
+    return 1 - score  # updated at 2026.10.09.
 
 
 def get_peak_trough(arr, config):
