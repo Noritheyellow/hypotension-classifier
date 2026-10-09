@@ -380,7 +380,7 @@ class HypophetVersion2(LabelStrategy):
             )
             pos_segments = np.vstack([(e[0], e[-1] + 1) for e in pos_seg])
         except ValueError or IndexError:
-            print("No positive segments extracted.")
+            # print("No positive segments extracted.")
             pos_segments = np.array([], dtype=np.int32)
 
         return pos_segments
@@ -396,7 +396,7 @@ class HypophetVersion2(LabelStrategy):
             )
             neg_segments = np.vstack([(e[0], e[-1] + 1) for e in neg_seg])
         except ValueError or IndexError:
-            print("No negative segments extracted.")
+            # print("No negative segments extracted.")
             neg_segments = np.array([], dtype=np.int32)
         
         return neg_segments

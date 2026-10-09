@@ -250,9 +250,9 @@ def assess_beat(arr, troughs, approx_zero, thresholds, verbose=False):
 
         # y축반전 ABP 신호에 대한 해결방법: beat 를 반으로 나누어 양쪽의 표준편차를 이용해 y축 반전이나 이상한 신호를 제거한다.
         # 정상적인 inv_index 면 양수가 나와야 하며 그 차이가 커야 한다. 만약 양수더라도 차이가 미비하면 안된다.
-        r_beat = scaled_beat[: int(beat_size / 2)]
-        l_beat = scaled_beat[int(beat_size / 2) :]
-        shape_integrity = np.std(r_beat) - np.std(l_beat)
+        l_beat = scaled_beat[: int(beat_size / 2)]
+        r_beat = scaled_beat[int(beat_size / 2) :]
+        shape_integrity = np.std(l_beat) - np.std(r_beat)
 
         is_outlier = (
             (beat_size > thresholds[0])
@@ -305,6 +305,7 @@ def get_peak_trough(arr, config):
         width=config["width"],
         wlen=config["wlen"],
     )
+
     peaks = custom_fp(arr.reshape(-1), height=config["peak_height"])[0]
     troughs = custom_fp(-1 * arr.reshape(-1), height=config["trough_height"])[0]
     return peaks, troughs

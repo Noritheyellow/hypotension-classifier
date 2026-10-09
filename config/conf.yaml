@@ -1,6 +1,6 @@
-src_path: "~/Github/spass_paper1/data/vitaldb/1.0.0/vital_files/"
-data_path: "~/Github/spass_paper1/data"
-model_path: "~/Github/spass_paper1/model"
+src_path: "~/Documents/Github/hypotension-classifier/data/vitaldb/1.0.0/vital_files/"
+data_path: "~/Documents/Github/hypotension-classifier/data"
+model_path: "~/Documents/Github/hypotension-classifier/model"
 track_names:
   - "Intellivue/ABP"
   - "Intellivue/ART"
@@ -28,7 +28,7 @@ detection:
   prom: 6
   width: 3
   wlen: 100
-  peak_height: [60, 300]
+  peak_height: [50, 300]
   trough_height: [-150, -30]
 sqi:
   threshold: 0.65

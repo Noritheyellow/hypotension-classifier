@@ -6,6 +6,7 @@
 #   - 평가에 사용할 Case IDs (12.test_vitaldb_model_with_vitaldb.py 에서 사용)
 import datetime
 from pathlib import Path
+import argparse
 import numpy as np
 import numpy.typing as npt
 from src.module.utils import parse_args, load_config, load_npy, save_npy
@@ -33,11 +34,11 @@ np.random.seed(42)
 
 def set_environment(args, config, model_name) -> dict:
     data_path = Path(config["data_path"]).expanduser()
-    src_path = data_path / "06.train_val_test"
+    src_path = data_path / "vitaldb" / "06.train_val_test_new"
 
-    save_dir = Path(config["model_path"]).expanduser()
+    save_dir = Path(config["model_path"]).expanduser() / "revision_seed43"
     save_dt = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
-    save_path = save_dir / (save_dt + f"_{args.strategy}") / f"{model_name}.model.keras"
+    save_path = save_dir / f"{model_name}.model.keras"
     env = {"src_path": src_path, "save_path": save_path}
     return env
 
@@ -52,12 +53,16 @@ def balance_dataset(X, y):
     pos_X, pos_y = X[pos_idx], y[pos_idx]
     neg_X, neg_y = X[neg_idx], y[neg_idx]
     res_X = np.vstack([pos_X, neg_X])
-    res_y = np.vstack([pos_y, neg_y])
+    res_y = np.hstack([pos_y, neg_y])
     print(res_y.shape)
     logging.info(
-        f"X: {res_X.shape} / y(pos/neg): {res_y.size}({sum(res_y==1)[0]}/{sum(res_y==0)[0]})"
+        f"X: {res_X.shape} / y(pos/neg): {res_y.size}({sum(res_y==1)}/{sum(res_y==0)})"
     )
     return res_X, res_y
+
+
+def scale_input(input) -> npt.NDArray:
+    return input.astype(np.float32) / 200
 
 
 def init_callbacks(env) -> list:
@@ -70,10 +75,10 @@ def init_callbacks(env) -> list:
             verbose=1,
         ),
         ReduceLROnPlateau(
-            monitor="val_auc", factor=0.1, patience=10, mode="max", verbose=1
+            monitor="val_auc", factor=0.1, patience=5, mode="max", verbose=1
         ),
         EarlyStopping(
-            monitor="val_auc", patience=15, mode="max", start_from_epoch=15, verbose=1
+            monitor="val_auc", patience=7, mode="max", start_from_epoch=5, verbose=1
         ),
     ]
     return callbacks
@@ -81,31 +86,16 @@ def init_callbacks(env) -> list:
 
 def init_model(config, model_name) -> Model:
     if model_name == "inceptiontime":
-        clf = InceptionTimeClassifier(
-            kernel_size=40,
-            n_filters=32,
-            use_residual=True,
-            use_bottleneck=True,
-            bottleneck_size=32,
-            depth=2,
-            random_state=config["seed"],
-        )
+        clf = InceptionTimeClassifier(random_state=config["seed"] + 1)
 
     elif model_name == "cnn":
-        clf = CNNClassifier(
-            kernel_size=7, batch_size=32, n_conv_layers=2, random_state=config["seed"]
-        )
+        clf = CNNClassifier(random_state=config["seed"] + 1)
 
     elif model_name == "lstmfcn":
-        clf = LSTMFCNClassifier(
-            dropout=0.8,
-            kernel_sizes=(8, 5, 3),
-            filter_sizes=(128, 256, 128),
-            lstm_size=8,
-        )
+        clf = LSTMFCNClassifier(random_state=config["seed"] + 1)
 
     elif model_name == "resnet":
-        clf = ResNetClassifier(random_state=42)
+        clf = ResNetClassifier(random_state=config["seed"] + 1)
 
     return clf
 
@@ -140,10 +130,25 @@ def evaluate_model(model, test_X, test_y, threshold):
     print(classification_report(test_y, pred_y))
 
 
-# Usage: python src/07_train_vitaldb_model.py --strategy hypophetversion2
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", dest="conf", type=str, default="config/conf.yaml")
+    parser.add_argument("-b", dest="batch", type=int, default=100000)
+    parser.add_argument("-m", "--min", dest="min", type=int, default=None)
+    parser.add_argument("-M", "--max", dest="max", type=int, default=None)
+    parser.add_argument("--mode", dest="mode", type=int, default=0)
+    parser.add_argument("--strategy", dest="strategy", type=str, default="hypophet")
+    parser.add_argument("-p", dest="part", type=int, default=None)
+    parser.add_argument("-s", dest="save_name", type=str, default="05.segment")
+    parser.add_argument("--model", dest="model_name", type=str, required=True)
+    args = parser.parse_args()
+    return args
+
+
+# Usage: python src/07_train_vitaldb_model.py --strategy hypophetversion2 --model inceptiontime
 def main():
-    model_name = "inceptiontime"
     args = parse_args()
+    model_name = args.model_name
     config = load_config(args.conf)
     env = set_environment(args, config, model_name)
     train_X = load_npy(env["src_path"] / f"vitaldb_{args.strategy}_train_X.npy")
@@ -159,14 +164,20 @@ def main():
     print(val_X.shape, val_y.shape)
     print(test_X.shape, test_y.shape)
 
+    train_bal_X_s = scale_input(train_bal_X)
+    val_X_s = scale_input(val_X)
+    test_X_s = scale_input(test_X)
+
     callbacks = init_callbacks(env)
 
     clf = init_model(config, model_name)
-    if model_name == "inceptiontime":
-        clf = replace_head(clf, train_bal_X.shape[1:], 2)
+    if model_name in ["inceptiontime", "cnn", "lstmfcn", "resnet"]:
+        clf = replace_head(clf, train_bal_X_s.shape[1:], 2)
 
-    clf, history = train_model(clf, train_bal_X, train_bal_y, val_X, val_y, callbacks)
-    evaluate_model(clf, test_X, test_y, 0.5)
+    clf, history = train_model(
+        clf, train_bal_X_s, train_bal_y, val_X_s, val_y, callbacks
+    )
+    evaluate_model(clf, test_X_s, test_y, 0.5)
 
 
 if __name__ == "__main__":

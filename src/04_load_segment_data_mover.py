@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from functools import partial
+import h5py
 import numpy as np
 from src.module.utils import (
     parse_args,
@@ -36,15 +37,50 @@ def set_environment(args, config):
     return env
 
 
+def range_segment(segments):
+    if segments.size != 0:
+        ranges = np.apply_along_axis(lambda x: np.arange(*x), axis=1, arr=segments)
+    else:
+        ranges = np.array([], dtype=np.int32)
+    return ranges
+
+
+def assess_segment(ranges, sqi, config):
+    if len(ranges) != 0:
+        is_bad_quality = np.any(sqi[ranges] > config["sqi"]["threshold"], axis=1)
+        samples = ranges[~is_bad_quality]
+    else:
+        samples = np.array([], dtype=np.int32).reshape(
+            -1, config["fs"] * config["input_len"]
+        )
+    return samples
+
+
 def run(file_path, config, strategy: LabelStrategy, label: str):
     cid = str(file_path).split("/")[-2]
     case_path = Path(config["data_path"]).expanduser() / "mover" / "04.segment" / cid
     os.makedirs(case_path, exist_ok=True)
     file_name = str(file_path).split("/")[-1].split(".")[0][:-7] + "_segments.npy"
-    event = load_npy(file_path)
-    segment = strategy.extract_segment(event, config, label)
-    save_npy(case_path / file_name, segment)
-    return segment
+    sig_path = (
+        Path(config["data_path"]).expanduser()
+        / "mover"
+        / "02.processed"
+        / cid
+        / f"{cid}_100fs_processed.h5"
+    )
+
+    with h5py.File(sig_path, "r") as f:
+        cid = f.attrs["caseid"]
+        sqi = f["signal/sqi"][:].astype(np.float32)
+
+    sqi = np.where(np.isnan(sqi), 1.0, sqi)
+    events = load_npy(file_path)
+    segments = strategy.extract_segment(events, config, label)
+    ranges = range_segment(segments)
+    samples = assess_segment(ranges, sqi, config)
+
+    save_npy(case_path / file_name, samples)
+    return samples
 
 
 # Usage: python src/04_load_segment_data_mover.py --strategy hypophetversion2
